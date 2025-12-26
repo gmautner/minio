@@ -13,7 +13,7 @@ RUN apk add -U --no-cache ca-certificates curl bash
 # Download static curl for health checks
 COPY dockerscripts/download-static-curl.sh /build/download-static-curl
 RUN chmod +x /build/download-static-curl && \
-    /build/download-static-curl
+    TARGETARCH=${TARGETARCH} /build/download-static-curl
 
 # Copy the pre-built minio binary for this architecture
 COPY minio-${TARGETARCH} /go/bin/minio
