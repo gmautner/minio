@@ -1,0 +1,146 @@
+name: Build and Publish Docker Image
+
+on:
+  push:
+    branches:
+      - master
+    tags:
+      - 'v*'
+      - 'RELEASE.*'
+  pull_request:
+    branches:
+      - master
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Image tag (leave empty to use branch/commit)'
+        required: false
+        type: string
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_NAME: ${{ github.repository }}
+
+permissions:
+  contents: read
+  packages: write
+
+jobs:
+  build-and-push:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        platform:
+          - linux/amd64
+          - linux/arm64
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: 1.24.x
+          check-latest: true
+
+      - name: Extract platform details
+        id: platform
+        run: |
+          platform=${{ matrix.platform }}
+          echo "os=${platform%/*}" >> $GITHUB_OUTPUT
+          echo "arch=${platform#*/}" >> $GITHUB_OUTPUT
+          echo "artifact_name=minio-${platform#*/}" >> $GITHUB_OUTPUT
+
+      - name: Build minio binary
+        env:
+          CGO_ENABLED: 0
+          GOOS: ${{ steps.platform.outputs.os }}
+          GOARCH: ${{ steps.platform.outputs.arch }}
+        run: |
+          LDFLAGS=$(go run buildscripts/gen-ldflags.go)
+          go build -tags kqueue -trimpath --ldflags "${LDFLAGS}" -o minio-${{ steps.platform.outputs.arch }}
+
+      - name: Upload binary artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ steps.platform.outputs.artifact_name }}
+          path: minio-${{ steps.platform.outputs.arch }}
+          retention-days: 1
+
+  docker-build:
+    needs: build-and-push
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Download all binary artifacts
+        uses: actions/download-artifact@v4
+        with:
+          pattern: minio-*
+          merge-multiple: true
+
+      - name: Make binaries executable
+        run: chmod +x minio-*
+
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to Container Registry
+        if: github.event_name != 'pull_request'
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Extract metadata (tags, labels)
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+          tags: |
+            # Branch name
+            type=ref,event=branch
+            # PR number
+            type=ref,event=pr
+            # Git tag
+            type=ref,event=tag
+            # Short SHA
+            type=sha,prefix=
+            # Latest tag for default branch
+            type=raw,value=latest,enable={{is_default_branch}}
+            # Custom tag from workflow dispatch
+            type=raw,value=${{ inputs.tag }},enable=${{ inputs.tag != '' }}
+
+      - name: Build and push Docker image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: ./Dockerfile.fork
+          platforms: linux/amd64,linux/arm64
+          push: ${{ github.event_name != 'pull_request' }}
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+  # Clean up artifacts after docker build
+  cleanup:
+    needs: docker-build
+    runs-on: ubuntu-latest
+    if: always()
+    steps:
+      - name: Delete artifacts
+        uses: geekyeggo/delete-artifact@v5
+        with:
+          name: minio-*
+          failOnError: false
+

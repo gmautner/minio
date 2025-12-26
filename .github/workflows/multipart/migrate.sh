@@ -1,4 +1,13 @@
 #!/bin/bash
+#
+# WARNING: This script depends on old MinIO releases from Docker Hub:
+#   - quay.io/minio/minio:RELEASE.2023-08-29T23-07-35Z
+#
+# This tests upgrade scenarios from old versions to the newly built version.
+# For a fork, you may want to:
+#   1. Disable this test (it's specific to upstream MinIO releases)
+#   2. Or maintain your own old releases for upgrade testing
+#
 
 set -x
 

@@ -1,0 +1,60 @@
+# Dex configuration for IAM integration tests
+# Used with official ghcr.io/dexidp/dex image
+
+issuer: http://127.0.0.1:5556/dex
+
+storage:
+  type: memory
+
+web:
+  http: 0.0.0.0:5556
+
+oauth2:
+  responseTypes: ["code", "token", "id_token"]
+  skipApprovalScreen: true
+  alwaysShowLoginScreen: false
+  passwordConnector: ldap
+
+expiry:
+  signingKeys: "3h"
+  idTokens: "3h"
+
+logger:
+  level: "debug"
+  format: "text"
+
+staticClients:
+  - id: minio
+    redirectURIs:
+      - 'http://127.0.0.1:10000/oauth_callback'
+    name: 'MinIO'
+    secret: SECRET
+
+connectors:
+  - type: ldap
+    id: ldap
+    name: LDAP
+    config:
+      host: openldap:389
+      insecureNoSSL: true
+      bindDN: cn=admin,dc=min,dc=io
+      bindPW: admin
+      usernamePrompt: Username
+      userSearch:
+        baseDN: ou=people,ou=swengg,dc=min,dc=io
+        filter: "(objectClass=inetOrgPerson)"
+        username: uid
+        idAttr: uid
+        emailAttr: mail
+        nameAttr: cn
+      groupSearch:
+        baseDN: ou=groups,ou=swengg,dc=min,dc=io
+        filter: "(objectClass=groupOfNames)"
+        userMatchers:
+          - userAttr: DN
+            groupAttr: member
+        nameAttr: cn
+
+enablePasswordDB: false
+
+

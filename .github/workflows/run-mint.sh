@@ -1,6 +1,25 @@
 #!/bin/bash
+#
+# This script runs the Mint S3 compatibility test suite.
+# It uses the forked mint image from GHCR.
+#
+# Required environment variable:
+#   MINT_IMAGE - The mint Docker image to use (e.g., ghcr.io/username/mint:edge)
+#
 
 set -ex
+
+if [ -z "$MINT_IMAGE" ]; then
+    # Default to gmautner's forked mint image
+    export MINT_IMAGE="ghcr.io/gmautner/mint:edge"
+fi
+
+if [ -z "$MINIO_IMAGE" ]; then
+    echo "ERROR: MINIO_IMAGE environment variable is not set"
+    echo "Please set it to the locally built MinIO image, e.g.:"
+    echo "  export MINIO_IMAGE=minio-test:abc123"
+    exit 1
+fi
 
 export MODE="$1"
 export ACCESS_KEY="$2"
@@ -15,8 +34,9 @@ docker volume rm $(docker volume ls -f dangling=true) || true
 ## change working directory
 cd .github/workflows/mint
 
-## always pull latest
-docker pull docker.io/minio/mint:edge
+## pull the mint image
+echo "Using mint image: $MINT_IMAGE"
+docker pull "$MINT_IMAGE"
 
 docker-compose -f minio-${MODE}.yaml up -d
 sleep 1m
@@ -39,7 +59,7 @@ docker run --rm --net=mint_default \
 	-e SECRET_KEY="${SECRET_KEY}" \
 	-e ENABLE_HTTPS=0 \
 	-e MINT_MODE="${MINT_MODE}" \
-	docker.io/minio/mint:edge
+	"$MINT_IMAGE"
 
 # FIXME: enable this after fixing aws-sdk-java-v2 tests
 # # unpause the node, to check that all S3 calls work while one node goes wrong
@@ -51,7 +71,7 @@ docker run --rm --net=mint_default \
 # 	-e SECRET_KEY="${SECRET_KEY}" \
 # 	-e ENABLE_HTTPS=0 \
 # 	-e MINT_MODE="${MINT_MODE}" \
-# 	docker.io/minio/mint:edge
+# 	"$MINT_IMAGE"
 
 docker-compose -f minio-${MODE}.yaml down || true
 sleep 10s

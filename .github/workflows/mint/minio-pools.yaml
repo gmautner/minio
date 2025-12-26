@@ -2,7 +2,7 @@ version: '3.7'
 
 # Settings and configurations that are common for all containers
 x-minio-common: &minio-common
-  image: quay.io/minio/minio:${JOB_NAME}
+  image: ${MINIO_IMAGE:-minio-test:latest}
   command: server --console-address ":9001" http://minio{1...4}/pdata{1...2} http://minio{5...8}/pdata{1...2}
   expose:
     - "9000"
@@ -13,7 +13,7 @@ x-minio-common: &minio-common
     MINIO_ROOT_PASSWORD: "minio123"
     MINIO_KMS_SECRET_KEY: "my-minio-key:OSMM+vkKUTCvQs9YL/CVMIMt43HFhkUpqJxTmGl6rYw="
   healthcheck:
-    test: ["CMD", "mc", "ready", "local"]
+    test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
     interval: 5s
     timeout: 5s
     retries: 5
