@@ -53,14 +53,20 @@ jobs:
           echo "arch=${platform#*/}" >> $GITHUB_OUTPUT
           echo "artifact_name=minio-${platform#*/}" >> $GITHUB_OUTPUT
 
+      - name: Generate LDFLAGS (using host architecture)
+        id: ldflags
+        run: |
+          # Generate LDFLAGS on the host architecture first
+          LDFLAGS=$(go run buildscripts/gen-ldflags.go)
+          echo "value=${LDFLAGS}" >> $GITHUB_OUTPUT
+
       - name: Build minio binary
         env:
           CGO_ENABLED: 0
           GOOS: ${{ steps.platform.outputs.os }}
           GOARCH: ${{ steps.platform.outputs.arch }}
         run: |
-          LDFLAGS=$(go run buildscripts/gen-ldflags.go)
-          go build -tags kqueue -trimpath --ldflags "${LDFLAGS}" -o minio-${{ steps.platform.outputs.arch }}
+          go build -tags kqueue -trimpath --ldflags "${{ steps.ldflags.outputs.value }}" -o minio-${{ steps.platform.outputs.arch }}
 
       - name: Upload binary artifact
         uses: actions/upload-artifact@v4
