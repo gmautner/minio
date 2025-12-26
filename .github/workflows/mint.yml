@@ -87,7 +87,7 @@ jobs:
         if: always()
         run: |
           for mode in compress-encrypt pools erasure; do
-             docker-compose -f ${GITHUB_WORKSPACE}/.github/workflows/mint/minio-${mode}.yaml down 2>/dev/null || true
+             docker compose -f ${GITHUB_WORKSPACE}/.github/workflows/mint/minio-${mode}.yaml down 2>/dev/null || true
           done
 
           docker volume prune -f || true
