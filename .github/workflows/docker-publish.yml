@@ -34,7 +34,7 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Set up Go (for generating ldflags)
+      - name: Set up Go
         uses: actions/setup-go@v5
         with:
           go-version: 1.24.x
@@ -42,18 +42,38 @@ jobs:
       - name: Generate build info
         id: build-info
         run: |
-          # Generate version info from git
           COMMIT_ID=$(git log --format=%H -n1)
           SHORT_COMMIT_ID=$(echo $COMMIT_ID | cut -c1-12)
           COMMIT_TIME=$(git log --format=%cI -n1)
           VERSION=$(date -u -d "$COMMIT_TIME" +"%Y-%m-%dT%H-%M-%SZ" 2>/dev/null || date -u -r $(git log --format=%ct -n1) +"%Y-%m-%dT%H-%M-%SZ")
+          YEAR=$(echo $VERSION | cut -c1-4)
           
-          echo "commit_id=${COMMIT_ID}" >> $GITHUB_OUTPUT
-          echo "short_commit_id=${SHORT_COMMIT_ID}" >> $GITHUB_OUTPUT
+          # Construct LDFLAGS
+          LDFLAGS="-s -w"
+          LDFLAGS="${LDFLAGS} -X github.com/minio/minio/cmd.Version=${VERSION}"
+          LDFLAGS="${LDFLAGS} -X github.com/minio/minio/cmd.CopyrightYear=${YEAR}"
+          LDFLAGS="${LDFLAGS} -X github.com/minio/minio/cmd.ReleaseTag=DEVELOPMENT.${VERSION}"
+          LDFLAGS="${LDFLAGS} -X github.com/minio/minio/cmd.CommitID=${COMMIT_ID}"
+          LDFLAGS="${LDFLAGS} -X github.com/minio/minio/cmd.ShortCommitID=${SHORT_COMMIT_ID}"
+          
           echo "version=${VERSION}" >> $GITHUB_OUTPUT
+          echo "ldflags=${LDFLAGS}" >> $GITHUB_OUTPUT
 
-      - name: Set up QEMU
-        uses: docker/setup-qemu-action@v3
+      - name: Build minio binaries (cross-compile)
+        env:
+          CGO_ENABLED: 0
+        run: |
+          # Build for amd64
+          echo "Building for linux/amd64..."
+          GOOS=linux GOARCH=amd64 go build -tags kqueue -trimpath \
+            --ldflags "${{ steps.build-info.outputs.ldflags }}" \
+            -o minio-amd64 main.go
+          
+          # Build for arm64 (cross-compile - much faster than QEMU)
+          echo "Building for linux/arm64..."
+          GOOS=linux GOARCH=arm64 go build -tags kqueue -trimpath \
+            --ldflags "${{ steps.build-info.outputs.ldflags }}" \
+            -o minio-arm64 main.go
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
@@ -72,17 +92,11 @@ jobs:
         with:
           images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
           tags: |
-            # Branch name
             type=ref,event=branch
-            # PR number
             type=ref,event=pr
-            # Git tag
             type=ref,event=tag
-            # Short SHA
             type=sha,prefix=
-            # Latest tag for default branch
             type=raw,value=latest,enable={{is_default_branch}}
-            # Custom tag from workflow dispatch
             type=raw,value=${{ inputs.tag }},enable=${{ inputs.tag != '' }}
 
       - name: Build and push Docker image
@@ -98,6 +112,3 @@ jobs:
           cache-to: type=gha,mode=max
           build-args: |
             RELEASE=${{ github.ref_name }}
-            VERSION=${{ steps.build-info.outputs.version }}
-            COMMIT_ID=${{ steps.build-info.outputs.commit_id }}
-            SHORT_COMMIT_ID=${{ steps.build-info.outputs.short_commit_id }}

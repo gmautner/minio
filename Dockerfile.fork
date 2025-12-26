@@ -1,9 +1,44 @@
 # Multi-arch Dockerfile for GHCR publishing
-# Uses pre-built binaries (cross-compiled in CI)
+# Builds MinIO from source within the container
 
-FROM alpine:3.21
+FROM golang:1.24-alpine AS builder
 
 ARG TARGETARCH
+ARG VERSION
+ARG COMMIT_ID
+ARG SHORT_COMMIT_ID
+ARG RELEASE
+
+ENV CGO_ENABLED=0
+ENV GO111MODULE=on
+
+WORKDIR /src
+
+# Install build dependencies
+RUN apk add -U --no-cache ca-certificates
+
+# Copy go mod files first for better layer caching
+COPY go.mod go.sum ./
+RUN go mod download
+
+# Copy source code
+COPY . .
+
+# Build for target architecture using pre-computed ldflags
+RUN YEAR=$(echo ${VERSION} | cut -c1-4) && \
+    LDFLAGS="-s -w \
+    -X github.com/minio/minio/cmd.Version=${VERSION} \
+    -X github.com/minio/minio/cmd.CopyrightYear=${YEAR} \
+    -X github.com/minio/minio/cmd.ReleaseTag=DEVELOPMENT.${VERSION} \
+    -X github.com/minio/minio/cmd.CommitID=${COMMIT_ID} \
+    -X github.com/minio/minio/cmd.ShortCommitID=${SHORT_COMMIT_ID}" && \
+    GOOS=linux GOARCH=${TARGETARCH} go build -tags kqueue -trimpath \
+    --ldflags "${LDFLAGS}" \
+    -o /usr/bin/minio main.go
+
+# Final stage - use Alpine for simplicity and curl availability
+FROM alpine:3.21
+
 ARG RELEASE
 
 LABEL name="MinIO" \
@@ -24,8 +59,8 @@ ENV MINIO_ACCESS_KEY_FILE=access_key \
     MINIO_KMS_SECRET_KEY_FILE=kms_master_key \
     MINIO_CONFIG_ENV_FILE=config.env
 
-# Copy the pre-built binary for this architecture
-COPY minio-${TARGETARCH} /usr/bin/minio
+COPY --from=builder /usr/bin/minio /usr/bin/minio
+
 COPY CREDITS /licenses/CREDITS
 COPY LICENSE /licenses/LICENSE
 COPY dockerscripts/docker-entrypoint.sh /usr/bin/docker-entrypoint.sh
