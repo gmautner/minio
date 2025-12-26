@@ -34,6 +34,24 @@ jobs:
         with:
           fetch-depth: 0
 
+      - name: Set up Go (for generating ldflags)
+        uses: actions/setup-go@v5
+        with:
+          go-version: 1.24.x
+
+      - name: Generate build info
+        id: build-info
+        run: |
+          # Generate version info from git
+          COMMIT_ID=$(git log --format=%H -n1)
+          SHORT_COMMIT_ID=$(echo $COMMIT_ID | cut -c1-12)
+          COMMIT_TIME=$(git log --format=%cI -n1)
+          VERSION=$(date -u -d "$COMMIT_TIME" +"%Y-%m-%dT%H-%M-%SZ" 2>/dev/null || date -u -r $(git log --format=%ct -n1) +"%Y-%m-%dT%H-%M-%SZ")
+          
+          echo "commit_id=${COMMIT_ID}" >> $GITHUB_OUTPUT
+          echo "short_commit_id=${SHORT_COMMIT_ID}" >> $GITHUB_OUTPUT
+          echo "version=${VERSION}" >> $GITHUB_OUTPUT
+
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v3
 
@@ -71,7 +89,7 @@ jobs:
         uses: docker/build-push-action@v6
         with:
           context: .
-          file: ./Dockerfile.fork
+          file: ./Dockerfile
           platforms: linux/amd64,linux/arm64
           push: ${{ github.event_name != 'pull_request' }}
           tags: ${{ steps.meta.outputs.tags }}
@@ -80,3 +98,6 @@ jobs:
           cache-to: type=gha,mode=max
           build-args: |
             RELEASE=${{ github.ref_name }}
+            VERSION=${{ steps.build-info.outputs.version }}
+            COMMIT_ID=${{ steps.build-info.outputs.commit_id }}
+            SHORT_COMMIT_ID=${{ steps.build-info.outputs.short_commit_id }}

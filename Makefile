@@ -213,7 +213,7 @@ docker-hotfix: hotfix-push checks ## builds minio docker container with hotfix t
 
 docker: build ## builds minio docker container
 	@echo "Building minio docker image '$(TAG)'"
-	@docker build -q --no-cache -t $(TAG) . -f Dockerfile
+	@docker build -q --no-cache -t $(TAG) . -f Dockerfile.local
 
 test-resiliency: build
 	@echo "Running resiliency tests"

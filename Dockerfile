@@ -1,33 +1,56 @@
-# Dockerfile for local builds and CI testing
-# Used by: make docker
-# Note: Expects ./minio binary to exist (created by make build)
+# Multi-arch Dockerfile for GHCR publishing
+# Builds MinIO from source within the container
 
-FROM golang:1.24-alpine AS build
+FROM golang:1.24-alpine AS builder
 
-ENV GOPATH=/go
+ARG TARGETARCH
+ARG VERSION
+ARG COMMIT_ID
+ARG SHORT_COMMIT_ID
+ARG RELEASE
+
 ENV CGO_ENABLED=0
+ENV GO111MODULE=on
 
-WORKDIR /build
+WORKDIR /src
 
-# Install dependencies for downloading static curl
-RUN apk add -U --no-cache ca-certificates curl bash
+# Install build dependencies
+RUN apk add -U --no-cache ca-certificates
 
-# Download static curl for healthchecks
-COPY dockerscripts/download-static-curl.sh /build/download-static-curl
-RUN chmod +x /build/download-static-curl && \
-    /build/download-static-curl
+# Copy go mod files first for better layer caching
+COPY go.mod go.sum ./
+RUN go mod download
 
-# Copy the locally built minio binary
-COPY minio /go/bin/minio
-RUN chmod +x /go/bin/minio
+# Copy source code
+COPY . .
 
-FROM registry.access.redhat.com/ubi9/ubi-micro:latest
+# Build for target architecture using pre-computed ldflags
+RUN YEAR=$(echo ${VERSION} | cut -c1-4) && \
+    LDFLAGS="-s -w \
+    -X github.com/minio/minio/cmd.Version=${VERSION} \
+    -X github.com/minio/minio/cmd.CopyrightYear=${YEAR} \
+    -X github.com/minio/minio/cmd.ReleaseTag=DEVELOPMENT.${VERSION} \
+    -X github.com/minio/minio/cmd.CommitID=${COMMIT_ID} \
+    -X github.com/minio/minio/cmd.ShortCommitID=${SHORT_COMMIT_ID}" && \
+    GOOS=linux GOARCH=${TARGETARCH} go build -tags kqueue -trimpath \
+    --ldflags "${LDFLAGS}" \
+    -o /usr/bin/minio main.go
+
+# Final stage - use Alpine for simplicity and curl availability
+FROM alpine:3.21
+
+ARG RELEASE
 
 LABEL name="MinIO" \
       vendor="MinIO Fork" \
-      maintainer="Fork Maintainer" \
+      maintainer="gmautner" \
+      version="${RELEASE}" \
+      release="${RELEASE}" \
       summary="MinIO is a High Performance Object Storage, API compatible with Amazon S3 cloud storage service." \
-      description="MinIO object storage is fundamentally different. Designed for performance and the S3 API, it is 100% open-source."
+      description="MinIO object storage is fundamentally different. Designed for performance and the S3 API, it is 100% open-source. MinIO is ideal for large, private cloud environments with stringent security requirements and delivers mission-critical availability across a diverse range of workloads."
+
+# Install curl for healthchecks
+RUN apk add -U --no-cache ca-certificates curl
 
 ENV MINIO_ACCESS_KEY_FILE=access_key \
     MINIO_SECRET_KEY_FILE=secret_key \
@@ -36,15 +59,13 @@ ENV MINIO_ACCESS_KEY_FILE=access_key \
     MINIO_KMS_SECRET_KEY_FILE=kms_master_key \
     MINIO_CONFIG_ENV_FILE=config.env
 
-RUN chmod -R 777 /usr/bin
-
-COPY --from=build /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/
-COPY --from=build /go/bin/minio /usr/bin/minio
-COPY --from=build /go/bin/curl /usr/bin/curl
+COPY --from=builder /usr/bin/minio /usr/bin/minio
 
 COPY CREDITS /licenses/CREDITS
 COPY LICENSE /licenses/LICENSE
 COPY dockerscripts/docker-entrypoint.sh /usr/bin/docker-entrypoint.sh
+
+RUN chmod +x /usr/bin/minio /usr/bin/docker-entrypoint.sh
 
 EXPOSE 9000
 VOLUME ["/data"]
