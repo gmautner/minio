@@ -37,7 +37,7 @@ RUN YEAR=$(echo ${VERSION} | cut -c1-4) && \
     -o /usr/bin/minio main.go
 
 # Final stage - use Alpine for simplicity and curl availability
-FROM alpine:3.21
+FROM alpine:3.23
 
 ARG RELEASE
 

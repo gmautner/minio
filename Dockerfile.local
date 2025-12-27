@@ -2,7 +2,7 @@
 # Used by: make docker
 # Note: Expects ./minio binary to exist (created by make build)
 
-FROM alpine:3.21
+FROM alpine:3.23
 
 LABEL name="MinIO" \
       vendor="MinIO Fork" \
