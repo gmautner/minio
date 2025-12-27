@@ -57,7 +57,4 @@ updates:
     labels:
       - "dependencies"
       - "docker"
-    ignore:
-      # Go version bumps should be coordinated with go.mod and workflows
-      - dependency-name: "golang"
 
