@@ -24,6 +24,9 @@ updates:
           # Keep security-critical packages separate
           - "golang.org/x/crypto"
           - "golang.org/x/net"
+    ignore:
+      # Using forked object-browser via replace directive
+      - dependency-name: "github.com/minio/console"
 
   # GitHub Actions
   - package-ecosystem: "github-actions"

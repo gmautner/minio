@@ -179,6 +179,8 @@ github.com/fortytw2/leaktest v1.3.0/go.mod h1:jDsjWgpAGjm2CA7WthBh/CdZYEPF31XHqu
 github.com/fraugster/parquet-go v0.12.0 h1:1slnC5y2VWEOUSlzbeXatM0BvSWcLUDsR/EcZsXXCZc=
 github.com/fraugster/parquet-go v0.12.0/go.mod h1:dGzUxdNqXsAijatByVgbAWVPlFirnhknQbdazcUIjY0=
 github.com/fsnotify/fsnotify v1.4.7/go.mod h1:jwhsz4b93w/PPRr/qN1Yymfu8t87LnFCMoQvtojpjFo=
+github.com/gmautner/object-browser v1.8.0 h1:iaWPAjHQrBnY6FcU4BTFKOMCs108zTriJ16Za7iNAQI=
+github.com/gmautner/object-browser v1.8.0/go.mod h1:gM4B3/7sqP17owJaoThmeDkfaDEQNZ1mjGU5DSwRReo=
 github.com/go-asn1-ber/asn1-ber v1.5.8-0.20250403174932-29230038a667 h1:BP4M0CvQ4S3TGls2FvczZtj5Re/2ZzkV9VwqPHH/3Bo=
 github.com/go-asn1-ber/asn1-ber v1.5.8-0.20250403174932-29230038a667/go.mod h1:hEBeB/ic+5LoWskz+yKT7vGhhPYkProFKoKdwZRWMe0=
 github.com/go-ini/ini v1.67.0 h1:z6ZrTEZqSWOTyH2FlglNbNgARyHG8oLW9gMELqKr06A=
@@ -421,8 +423,6 @@ github.com/minio/cli v1.24.2 h1:J+fCUh9mhPLjN3Lj/YhklXvxj8mnyE/D6FpFduXJ2jg=
 github.com/minio/cli v1.24.2/go.mod h1:bYxnK0uS629N3Bq+AOZZ+6lwF77Sodk4+UL9vNuXhOY=
 github.com/minio/colorjson v1.0.8 h1:AS6gEQ1dTRYHmC4xuoodPDRILHP/9Wz5wYUGDQfPLpg=
 github.com/minio/colorjson v1.0.8/go.mod h1:wrs39G/4kqNlGjwqHvPlAnXuc2tlPszo6JKdSBCLN8w=
-github.com/minio/console v1.7.7-0.20250905210349-2017f33b26e1 h1:jOW1ggtITn8sreTzUjcdYE/ZffxeVmWstXNlBLOE6j4=
-github.com/minio/console v1.7.7-0.20250905210349-2017f33b26e1/go.mod h1:hKNkzdKBKU84w5wXqMnkH74QocJGHW2zjvFtuGETDsc=
 github.com/minio/crc64nvme v1.0.1 h1:DHQPrYPdqK7jQG/Ls5CTBZWeex/2FMS3G5XGkycuFrY=
 github.com/minio/crc64nvme v1.0.1/go.mod h1:eVfm2fAzLlxMdUGc0EEBGSMmPwmXD5XiNRpnu9J3bvg=
 github.com/minio/csvparser v1.0.0 h1:xJEHcYK8ZAjeW4hNV9Zu30u+/2o4UyPnYgyjWp8b7ZU=

@@ -274,3 +274,6 @@ require (
 	google.golang.org/grpc v1.72.0 // indirect
 	google.golang.org/protobuf v1.36.6 // indirect
 )
+
+// Use forked object-browser (console) instead of upstream
+replace github.com/minio/console => github.com/gmautner/object-browser v1.8.0
