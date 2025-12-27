@@ -1,7 +1,7 @@
 # Multi-arch Dockerfile for GHCR publishing
 # Uses pre-built binaries (cross-compiled in CI)
 
-FROM alpine:3.21
+FROM alpine:3.23
 
 ARG TARGETARCH
 ARG RELEASE
