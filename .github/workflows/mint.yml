@@ -27,7 +27,7 @@ permissions:
 
 jobs:
   mint-test:
-    runs-on: ubuntu-latest
+    runs-on: self-hosted
     timeout-minutes: 120
     steps:
       - name: Cleanup workspace
