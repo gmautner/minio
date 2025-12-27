@@ -63,6 +63,8 @@ jobs:
         run: docker pull ${{ env.MINT_IMAGE }}
 
       - name: Run compress and encrypt tests
+        id: compress-encrypt
+        continue-on-error: true
         env:
           MINT_IMAGE: ${{ env.MINT_IMAGE }}
           MINIO_IMAGE: minio-test:${{ steps.vars.outputs.sha_short }}
@@ -70,6 +72,8 @@ jobs:
           ${GITHUB_WORKSPACE}/.github/workflows/run-mint.sh "compress-encrypt" "minio" "minio123" "${{ steps.vars.outputs.sha_short }}"
 
       - name: Run multiple pools tests
+        id: pools
+        continue-on-error: true
         env:
           MINT_IMAGE: ${{ env.MINT_IMAGE }}
           MINIO_IMAGE: minio-test:${{ steps.vars.outputs.sha_short }}
@@ -77,11 +81,38 @@ jobs:
           ${GITHUB_WORKSPACE}/.github/workflows/run-mint.sh "pools" "minio" "minio123" "${{ steps.vars.outputs.sha_short }}"
 
       - name: Run standalone erasure tests
+        id: erasure
+        continue-on-error: true
         env:
           MINT_IMAGE: ${{ env.MINT_IMAGE }}
           MINIO_IMAGE: minio-test:${{ steps.vars.outputs.sha_short }}
         run: |
           ${GITHUB_WORKSPACE}/.github/workflows/run-mint.sh "erasure" "minio" "minio123" "${{ steps.vars.outputs.sha_short }}"
+
+      - name: Test Summary
+        run: |
+          echo "## Mint Test Results" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| Test Mode | Status |" >> $GITHUB_STEP_SUMMARY
+          echo "|-----------|--------|" >> $GITHUB_STEP_SUMMARY
+          echo "| compress-encrypt | ${{ steps.compress-encrypt.outcome }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| pools | ${{ steps.pools.outcome }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| erasure | ${{ steps.erasure.outcome }} |" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          
+          # Count results
+          PASSED=0
+          FAILED=0
+          [ "${{ steps.compress-encrypt.outcome }}" == "success" ] && ((PASSED++)) || ((FAILED++))
+          [ "${{ steps.pools.outcome }}" == "success" ] && ((PASSED++)) || ((FAILED++))
+          [ "${{ steps.erasure.outcome }}" == "success" ] && ((PASSED++)) || ((FAILED++))
+          
+          echo "**Results: ${PASSED}/3 test modes passed**" >> $GITHUB_STEP_SUMMARY
+          
+          if [ $FAILED -gt 0 ]; then
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "⚠️ Some tests failed. Check individual test logs for details." >> $GITHUB_STEP_SUMMARY
+          fi
 
       - name: Cleanup
         if: always()
@@ -93,3 +124,9 @@ jobs:
           docker volume prune -f || true
           docker rmi -f minio-test:${{ steps.vars.outputs.sha_short }} 2>/dev/null || true
           docker system prune -f || true
+
+      - name: Check for failures
+        if: steps.compress-encrypt.outcome == 'failure' || steps.pools.outcome == 'failure' || steps.erasure.outcome == 'failure'
+        run: |
+          echo "One or more test modes failed. See summary above."
+          exit 1
